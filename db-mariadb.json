@@ -4,23 +4,24 @@
         "version": "PTDL_v2",
         "update_url": null
     },
-    "exported_at": "2025-07-04T08:38:00+00:00",
+    "exported_at": "2026-04-18T00:00:00+00:00",
     "name": "MariaDB (Optimized)",
     "author": "danielb@purpleflaghosting.com",
     "description": "An optimized MariaDB egg featuring automated configuration, custom environment variables, and support for LTS versions.",
     "features": null,
+    "version": "1.0.0",
     "docker_images": {
         "MariaDB 11.8 LTS": "ghcr.io/ptero-eggs/yolks:mariadb_11.8",
         "MariaDB 11.4 LTS": "ghcr.io/ptero-eggs/yolks:mariadb_11.4",
         "MariaDB 10.11 LTS": "ghcr.io/ptero-eggs/yolks:mariadb_10.11"
     },
     "file_denylist": [],
-    "startup": "/bin/bash -c 'while ! mariadb -u container -S /home/container/run/mysqld/mysqld.sock -e \"SELECT 1\" > /dev/null 2>&1; do sleep 1; done && mariadb -u container -S /home/container/run/mysqld/mysqld.sock -e \"ALTER USER \\\"root\\\"@\\\"localhost\\\" IDENTIFIED BY \\\"${MYSQL_ROOT_PASSWORD}\\\"; CREATE USER IF NOT EXISTS \\\"root\\\"@\\\"%\\\" IDENTIFIED BY \\\"${MYSQL_ROOT_PASSWORD}\\\"; GRANT ALL PRIVILEGES ON *.* TO \\\"root\\\"@\\\"%\\\" WITH GRANT OPTION; CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE}; CREATE USER IF NOT EXISTS \\\"${MYSQL_USER}\\\"@\\\"%\\\" IDENTIFIED BY \\\"${MYSQL_PASSWORD}\\\"; GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO \\\"${MYSQL_USER}\\\"@\\\"%\\\"; FLUSH PRIVILEGES;\" && tail -f /dev/null'",
+    "startup": "/bin/bash -c 'SOCK=/home/container/run/mysqld/mysqld.sock; while ! mariadb -u container -S $SOCK -e \"SELECT 1\" > /dev/null 2>&1; do sleep 1; done; EXT_HOST=$([ \"${ALLOW_EXTERNAL}\" = \"true\" ] && echo \"%\" || echo \"localhost\"); SQL_CMD=\"ALTER USER \\\"root\\\"@\\\"localhost\\\" IDENTIFIED BY \\\"${MYSQL_ROOT_PASSWORD}\\\"; DROP USER IF EXISTS \\\"root\\\"@\\\"%\\\";\"; if [ \"${ALLOW_ROOT_REMOTE}\" = \"true\" ]; then SQL_CMD+=\" CREATE USER IF NOT EXISTS \\\"root\\\"@\\\"%\\\" IDENTIFIED BY \\\"${MYSQL_ROOT_PASSWORD}\\\"; GRANT ALL PRIVILEGES ON *.* TO \\\"root\\\"@\\\"%\\\" WITH GRANT OPTION;\"; fi; if [ -n \"${MYSQL_DATABASE}\" ]; then SQL_CMD+=\" CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE};\"; fi; if [ -n \"${MYSQL_USER}\" ]; then SQL_CMD+=\" CREATE USER IF NOT EXISTS \\\"${MYSQL_USER}\\\"@\\\"${EXT_HOST}\\\" IDENTIFIED BY \\\"${MYSQL_PASSWORD}\\\"; GRANT ${USER_PRIVILEGES} ON ${MYSQL_DATABASE}.* TO \\\"${MYSQL_USER}\\\"@\\\"${EXT_HOST}\\\";\"; fi; SQL_CMD+=\" FLUSH PRIVILEGES;\"; mariadb -u container -S $SOCK -e \"$SQL_CMD\"; tail -f /dev/null'",
     "config": {
         "files": "{\r\n  \".my.cnf\": {\r\n    \"parser\": \"ini\",\r\n    \"find\": {\r\n      \"mysqld.port\": \"{{server.build.default.port}}\",\r\n      \"client.port\": \"{{server.build.default.port}}\",\r\n      \"mysqld.bind-address\": \"0.0.0.0\",\r\n      \"mysqld.pid-file\": \"/home/container/run/mysqld/mysqld.pid\",\r\n      \"mysqld.socket\": \"/home/container/run/mysqld/mysqld.sock\",\r\n      \"client.socket\": \"/home/container/run/mysqld/mysqld.sock\",\r\n      \"mysqld.general_log_file\": \"/home/container/log/mysql/mysql.log\",\r\n      \"client.user\": \"container\"\r\n    }\r\n  }\r\n}",
         "startup": "{\r\n    \"done\": \"ready for connections.\"\r\n}",
         "logs": "{}",
-        "stop": "shutdown; exit;"
+        "stop": "^C"
     },
     "scripts": {
         "installation": {
@@ -41,23 +42,33 @@
             "field_type": "text"
         },
         {
+            "name": "Allow Root Remote Access",
+            "description": "Allow the root user to connect from external hosts. Set to 'true' to enable. WARNING: use a strong password.",
+            "env_variable": "ALLOW_ROOT_REMOTE",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|in:true,false",
+            "field_type": "text"
+        },
+        {
             "name": "Database Name",
-            "description": "The name of the database to create on startup.",
+            "description": "The name of the default database to create on startup. Leave blank to skip.",
             "env_variable": "MYSQL_DATABASE",
             "default_value": "pterodactyl",
             "user_viewable": true,
             "user_editable": true,
-            "rules": "required|string|max:32",
+            "rules": "nullable|string|max:32",
             "field_type": "text"
         },
         {
             "name": "Additional User",
-            "description": "A non-root user to be created.",
+            "description": "A non-root user to be created. Leave blank to skip.",
             "env_variable": "MYSQL_USER",
             "default_value": "ptero_user",
             "user_viewable": true,
             "user_editable": true,
-            "rules": "required|string|max:32",
+            "rules": "nullable|string|max:32",
             "field_type": "text"
         },
         {
@@ -68,6 +79,106 @@
             "user_viewable": true,
             "user_editable": true,
             "rules": "required|string|min:8",
+            "field_type": "text"
+        },
+        {
+            "name": "Allow External Connections for Additional User",
+            "description": "Allow the additional user to connect from external hosts. Set to 'true' to allow from anywhere, 'false' for localhost only.",
+            "env_variable": "ALLOW_EXTERNAL",
+            "default_value": "true",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Additional User Privileges",
+            "description": "Privileges to grant the additional user on their database. Examples: ALL PRIVILEGES, SELECT, SELECT,INSERT,UPDATE,DELETE",
+            "env_variable": "USER_PRIVILEGES",
+            "default_value": "ALL PRIVILEGES",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Max Connections",
+            "description": "Maximum number of simultaneous client connections.",
+            "env_variable": "MYSQL_MAX_CONNECTIONS",
+            "default_value": "100",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|min:10|max:1000",
+            "field_type": "text"
+        },
+        {
+            "name": "InnoDB Buffer Pool Size (MB)",
+            "description": "Size of the InnoDB buffer pool in MB. Recommended: 50-70% of available RAM.",
+            "env_variable": "INNODB_BUFFER_POOL_SIZE",
+            "default_value": "128",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|min:32|max:4096",
+            "field_type": "text"
+        },
+        {
+            "name": "Enable General Query Log",
+            "description": "Log all queries to a file. Useful for debugging but impacts performance. Set to 'true' or 'false'.",
+            "env_variable": "ENABLE_QUERY_LOG",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Enable Slow Query Log",
+            "description": "Log queries that take longer than the threshold. Set to 'true' or 'false'.",
+            "env_variable": "ENABLE_SLOW_LOG",
+            "default_value": "false",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|in:true,false",
+            "field_type": "text"
+        },
+        {
+            "name": "Slow Query Time Threshold (seconds)",
+            "description": "Queries taking longer than this many seconds will be logged (if slow query log is enabled).",
+            "env_variable": "SLOW_QUERY_TIME",
+            "default_value": "2",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|integer|min:1|max:300",
+            "field_type": "text"
+        },
+        {
+            "name": "Character Set",
+            "description": "Default character set for the server.",
+            "env_variable": "MYSQL_CHARSET",
+            "default_value": "utf8mb4",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|in:utf8mb4,utf8,latin1,ascii",
+            "field_type": "text"
+        },
+        {
+            "name": "Collation",
+            "description": "Default collation for the server.",
+            "env_variable": "MYSQL_COLLATION",
+            "default_value": "utf8mb4_unicode_ci",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string",
+            "field_type": "text"
+        },
+        {
+            "name": "Time Zone",
+            "description": "Server time zone. Examples: UTC, Europe/Paris, America/New_York",
+            "env_variable": "MYSQL_TIMEZONE",
+            "default_value": "UTC",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string",
             "field_type": "text"
         }
     ]
