@@ -15,7 +15,7 @@
         "MariaDB 10.11 LTS": "ghcr.io/ptero-eggs/yolks:mariadb_10.11"
     },
     "file_denylist": [],
-    "startup": "tail -f /dev/null",
+    "startup": "/bin/bash -c 'while ! mariadb -u container -S /home/container/run/mysqld/mysqld.sock -e \"SELECT 1\" > /dev/null 2>&1; do sleep 1; done && mariadb -u container -S /home/container/run/mysqld/mysqld.sock -e \"ALTER USER \\\"root\\\"@\\\"localhost\\\" IDENTIFIED BY \\\"${MYSQL_ROOT_PASSWORD}\\\"; CREATE USER IF NOT EXISTS \\\"root\\\"@\\\"%\\\" IDENTIFIED BY \\\"${MYSQL_ROOT_PASSWORD}\\\"; GRANT ALL PRIVILEGES ON *.* TO \\\"root\\\"@\\\"%\\\" WITH GRANT OPTION; CREATE DATABASE IF NOT EXISTS ${MYSQL_DATABASE}; CREATE USER IF NOT EXISTS \\\"${MYSQL_USER}\\\"@\\\"%\\\" IDENTIFIED BY \\\"${MYSQL_PASSWORD}\\\"; GRANT ALL PRIVILEGES ON ${MYSQL_DATABASE}.* TO \\\"${MYSQL_USER}\\\"@\\\"%\\\"; FLUSH PRIVILEGES;\" && tail -f /dev/null'",
     "config": {
         "files": "{\r\n  \".my.cnf\": {\r\n    \"parser\": \"ini\",\r\n    \"find\": {\r\n      \"mysqld.port\": \"{{server.build.default.port}}\",\r\n      \"client.port\": \"{{server.build.default.port}}\",\r\n      \"mysqld.bind-address\": \"0.0.0.0\",\r\n      \"mysqld.pid-file\": \"/home/container/run/mysqld/mysqld.pid\",\r\n      \"mysqld.socket\": \"/home/container/run/mysqld/mysqld.sock\",\r\n      \"client.socket\": \"/home/container/run/mysqld/mysqld.sock\",\r\n      \"mysqld.general_log_file\": \"/home/container/log/mysql/mysql.log\",\r\n      \"client.user\": \"container\"\r\n    }\r\n  }\r\n}",
         "startup": "{\r\n    \"done\": \"ready for connections.\"\r\n}",
@@ -24,7 +24,7 @@
     },
     "scripts": {
         "installation": {
-            "script": "#!/bin/bash\r\necho \"Installation complete\"",
+            "script": "#!/bin/bash\necho \"Installation complete\"",
             "container": "alpine",
             "entrypoint": "ash"
         }
