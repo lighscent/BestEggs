@@ -1,0 +1,74 @@
+{
+    "_comment": "DO NOT EDIT: FILE GENERATED AUTOMATICALLY BY PTERODACTYL PANEL - PTERODACTYL.IO",
+    "meta": {
+        "version": "PTDL_v2",
+        "update_url": null
+    },
+    "exported_at": "2025-07-04T08:38:00+00:00",
+    "name": "MariaDB (Optimized)",
+    "author": "danielb@purpleflaghosting.com",
+    "description": "An optimized MariaDB egg featuring automated configuration, custom environment variables, and support for LTS versions.",
+    "features": null,
+    "docker_images": {
+        "MariaDB 11.8 LTS": "ghcr.io/ptero-eggs/yolks:mariadb_11.8",
+        "MariaDB 11.4 LTS": "ghcr.io/ptero-eggs/yolks:mariadb_11.4",
+        "MariaDB 10.11 LTS": "ghcr.io/ptero-eggs/yolks:mariadb_10.11"
+    },
+    "file_denylist": [],
+    "startup": "tail -f /dev/null",
+    "config": {
+        "files": "{\r\n  \".my.cnf\": {\r\n    \"parser\": \"ini\",\r\n    \"find\": {\r\n      \"mysqld.port\": \"{{server.build.default.port}}\",\r\n      \"client.port\": \"{{server.build.default.port}}\",\r\n      \"mysqld.bind-address\": \"0.0.0.0\",\r\n      \"mysqld.pid-file\": \"/home/container/run/mysqld/mysqld.pid\",\r\n      \"mysqld.socket\": \"/home/container/run/mysqld/mysqld.sock\",\r\n      \"client.socket\": \"/home/container/run/mysqld/mysqld.sock\",\r\n      \"mysqld.general_log_file\": \"/home/container/log/mysql/mysql.log\",\r\n      \"client.user\": \"container\"\r\n    }\r\n  }\r\n}",
+        "startup": "{\r\n    \"done\": \"ready for connections.\"\r\n}",
+        "logs": "{}",
+        "stop": "shutdown; exit;"
+    },
+    "scripts": {
+        "installation": {
+            "script": "#!/bin/bash\r\necho \"Installation complete\"",
+            "container": "alpine",
+            "entrypoint": "ash"
+        }
+    },
+    "variables": [
+        {
+            "name": "Root Password",
+            "description": "The password for the root user. DO NOT LEAVE BLANK.",
+            "env_variable": "MYSQL_ROOT_PASSWORD",
+            "default_value": "change_me_please",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|min:8",
+            "field_type": "text"
+        },
+        {
+            "name": "Database Name",
+            "description": "The name of the database to create on startup.",
+            "env_variable": "MYSQL_DATABASE",
+            "default_value": "pterodactyl",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:32",
+            "field_type": "text"
+        },
+        {
+            "name": "Additional User",
+            "description": "A non-root user to be created.",
+            "env_variable": "MYSQL_USER",
+            "default_value": "ptero_user",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|max:32",
+            "field_type": "text"
+        },
+        {
+            "name": "Additional User Password",
+            "description": "Password for the additional user.",
+            "env_variable": "MYSQL_PASSWORD",
+            "default_value": "another_secure_password",
+            "user_viewable": true,
+            "user_editable": true,
+            "rules": "required|string|min:8",
+            "field_type": "text"
+        }
+    ]
+}
